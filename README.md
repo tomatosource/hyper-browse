@@ -1,20 +1,23 @@
-# htyt
+# hyper-brwose
 
-[Hyper](https://hyper.is/) plugin to search & play youtube videos.
+[Hyper](https://hyper.is/) plugin to display URLs - intended for development uses primarily.
 
 
-### How to use
+## Installation
 
-[Install Hyper](https://hyper.is/#installation) and add `htyt` to `plugins`
+[Install Hyper](https://hyper.is/#installation) and add `hyper-browse` to `plugins`
 in `~/.hyper.js`.
 
- 
-- ``` htyt."<video name>"``` to search a video on youtube and render it within Hyper
-- Focus on the Hyper window and Ctrl + C to quit.
+## Usage
 
-![Demo](https://www.dropbox.com/s/39hygw4kdke9iqj/htyt_demo2%20%281%29.gif?dl=1)
+### Opening
 
+- ```$ browse:https://google.com```
 
-### License
+### Closing
+
+- `Ctrl + C`
+
+## License
 
 MIT

@@ -1,109 +1,184 @@
-const searchYoutube = require("./search-youtube.js");
+function detectImgCatCommand(data) {
+    const patterns = [
+        'zsh: command not found: browse',
+        'browse: command not found',
+        'command not found: browse',
+        'Unknown command \'browse\'',
+        '\'browse\' is not recognized*',
+    ];
+  return new RegExp('(' + patterns.join(')|(') + ')').test(data)
+}
 
-exports.middleware = (store) => (next) => (action) => {
-  if ('SESSION_ADD_DATA' === action.type) {
-    const { data } = action;
-    if (/(htyt\.[\w\s,]+: command not found)|(command not found: htyt\.[\w\s,]+)/.test(data)) {
-      let arg = data.substring(data.indexOf('.')+1, data.lastIndexOf(':'));
-      if(!(/(^\s*$)/.test(arg))){
-        store.dispatch({
-          type: 'HTYT_QUERY',
-          data: arg.trim()
-        });
-      }
-    } else {
-      next(action);
+exports.decorateTerm = (Term, { React, notify }) => {
+    return class extends React.Component {
+        constructor(props, context) {
+          super(props, context);
+          this._originCursorColor = props.cursorColor;
+          this._term = null;
+          this._cursorFrame = null;
+          this.onDecorated = this.onDecorated.bind(this);
+          this.onCursorMove = this.onCursorMove.bind(this);
+        }
+
+        onDecorated(term) {
+            if (term === null) return;
+            if (this.props.onDecorated) this.props.onDecorated(term);
+            this._term = term;
+            this._term.termRef.addEventListener(
+                'keyup', event => this.handleKeyUp(event),
+                false
+            );
+        }
+
+        onCursorMove (cursorFrame) {
+            if (this.props.onCursorMove) this.props.onCursorMove(cursorFrame);
+            this._cursorFrame = cursorFrame;
+        }
+
+        removeImageView() {
+            let imgView = document.getElementById('browse-view');
+            if(!imgView) return;
+            store.dispatch({
+                type: 'HOOK_COMMAND',
+                isCalledCommand: false,
+                filePath: '',
+                cursorColor: this._originCursorColor,
+            });
+        }
+
+        handleKeyUp(event) {
+            const {keyCode} = event;
+					console.log(event);
+            if (event.key == 'c' && event.ctrlKey) {
+                this.removeImageView();
+            }
+        }
+
+        /**
+         * Add new line to current line
+         *
+         * You can insert a line feed code instead of a space.
+         * However, because the code differs depending on the platform, space filling is more versatile.
+         *
+         * @param int num The number of new line
+         */
+        newLine(num) {
+            let newLine = ' '.repeat(this._term.term.cols * num);
+            this._term.term._core.write(newLine);
+        }
+
+        createImageView() {
+            if (!this.props.myState.isCalledCommand || this._cursorFrame === null) return null;
+
+            // Insert a line break to keep the execution command on the display.
+            // Hyper is designed so that if you insert a space-filling or line feed code that exceeds the width,
+            // even if you hook with dispatch, the entered characters will remain.
+            this.newLine(1);
+
+            const { x, y } = this._cursorFrame;
+            const origin = this._term.termRef.getBoundingClientRect();
+            return React.createElement(
+                'iframe',
+                {
+                    style: {
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        height: '100%',
+                        width:'100%',
+                    },
+									src: "https://wikipedia.org",
+                    id: 'browse-view'
+                },
+            );
+        }
+
+        render () {
+            if (this.props.myState === undefined) {
+                return React.createElement( Term, Object.assign({}, this.props, {
+                        onDecorated: this.onDecorated,
+                        onCursorMove: this.onCursorMove,
+                }));
+            }
+
+            const children = [
+                React.createElement(
+                    Term,
+                    Object.assign({}, this.props, {
+                        onDecorated: this.onDecorated,
+                        onCursorMove: this.onCursorMove,
+                        cursorColor: this.props.myState.cursorColor,
+                    })),
+                this.createImageView(),
+            ];
+
+            return React.createElement(
+                'div',
+                {
+                    style: {
+                        width: '100%',
+                        height: '100%',
+                    },
+                },
+                children
+            )
+        }
     }
-  } else {
-    next(action);
-  }
-};
+}
+
+/**
+ * Get history path of login shell.
+ *
+ * @return string
+ */
+function getHistoryPath() {
+    let shell = execSync('echo $SHELL').toString();
+    if (new RegExp('zsh').test(shell)) {
+        return '~/.zsh_history';
+    } else if (new RegExp('bash').test(shell)) {
+        return '~/.bash_history';
+    } else if (new RegExp('fish').test(shell)) {
+        return '~/.local/share/fish/fish_history';
+    }
+}
+
+exports.middleware = store => next => (action) => {
+    if (action.type === 'SESSION_ADD_DATA') {
+        const { data } = action;
+        if (detectImgCatCommand(data)) {
+            store.dispatch({
+                type: 'HOOK_COMMAND',
+                isCalledCommand: true,
+                filePath: "todo url",
+                cursorColor: 'rgba(0,0,0,0.0)',
+            });
+        } else {
+            next(action);
+        }
+    }else {
+        next(action);
+    }
+}
 
 exports.reduceUI = (state, action) => {
-  switch (action.type) {
-    case 'HTYT_QUERY': {
-      return state.set('htytEmbed', action.data);
+    switch (action.type) {
+        case 'HOOK_COMMAND':
+            return state.set('myState', {
+                isCalledCommand : action.isCalledCommand,
+                filePath: action.filePath,
+                cursorColor: action.cursorColor,
+            });
     }
-  }
-  return state;
+    return state;
 };
 
-exports.mapTermsState = (state, map) => {
-  return Object.assign(map, {
-    htytEmbed: state.ui.htytEmbed
-  });
-};
+exports.mapTermsState = (state, map) => Object.assign(map, {
+    myState: state.ui.myState,
+});
 
-const passProps = (uid, parentProps, props) => {
-  return Object.assign(props, {
-    htytEmbed: parentProps.htytEmbed
-  });
-}
+const passProps = (uid, parentProps, props) => Object.assign(props, {
+    myState: parentProps.myState,
+})
 
 exports.getTermGroupProps = passProps;
 exports.getTermProps = passProps;
-
-exports.decorateTerm = (Term, { React, notify }) => {
-  return class extends React.Component {
-    constructor (props, context) {
-      super(props, context);
-      this._onTerminal = this._onTerminal.bind(this);
-      this.term = null
-    }
-
-    _onTerminal (term) {
-      if (this.props.onTerminal) this.props.onTerminal(term);
-      this._screenNode = term.screen_;
-      this._cursor = term.cursorNode_;
-      this.scrollPort = term.scrollPort_;
-    }
-
-    componentWillReceiveProps (next) {
-      if (next.htytEmbed != this.props.htytEmbed) {
-        this.perpareEmbed(next.htytEmbed);
-      }
-    }
-
-    perpareEmbed (htytEmbed){
-      const self = this;
-      if(htytEmbed){
-        searchYoutube.find(htytEmbed, function(videoId){
-          self.renderEmbed(videoId);
-        });
-      }
-    }
-
-    renderEmbed (videoId){
-	    const screen = this._screenNode;
-      const cursor = this._cursor;
-      if (videoId) {
-        /*
-          Embedding youtube videos within the current tab
-          Idea dropped due to cursor position syncing.
-        */
-        // const cursorNode = document.createElement('iframe');
-        // cursorNode.src = `https://www.youtube.com/embed/${videoId}?rel=0&amp;controls=0&amp;showinfo=0`
-        // cursorNode.frameborder = "0";
-        // cursorNode.allowfullscreen;
-        // cursorNode.height = '315';
-        // cursorNode.width = '560';
-        // screen.cursorRowNode_.style.height = "330px";
-        // screen.cursorRowNode_.replaceChild(cursorNode, screen.cursorNode_)
-        // screen.cursorNode_ = cursorNode;
-        // this.scrollPort.redraw_();
-        store.dispatch({
-          type: 'SESSION_URL_SET',
-          uid: store.getState().sessions.activeUid,
-          url: "https://www.youtube.com/watch?v="+videoId
-        });
-      }
-    }
-
-    render () {
-      return React.createElement(Term, Object.assign({}, this.props, {
-        onTerminal: this._onTerminal
-      }));
-    }
-
-  }
-};

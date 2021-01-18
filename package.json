@@ -1,20 +1,20 @@
 {
-  "name": "htyt",
-  "version": "0.1.1",
-  "description": "Play youtube videos in hyperterm.",
+  "name": "hyper-browse",
+  "version": "0.0.1",
+  "description": "Browse websites in panes",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo lol"
   },
   "keywords": [
     "hyper",
     "hyperterm",
-    "youtube"
+    "browser"
   ],
-  "author": "Abhishek Jairath <jairath.abhishek@gmail.com> (http://abhishekjairath.com)",
+  "author": "tomatosource",
   "repository": {
     "type": "git",
-    "url": "https://github.com/abhishekjairath/htyt"
+    "url": "https://github.com/tomatosource/hyper-browse"
   },
   "license": "MIT",
   "dependencies": {
