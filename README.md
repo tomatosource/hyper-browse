@@ -12,11 +12,16 @@ in `~/.hyper.js`.
 
 ### Opening
 
-- ```$ browse:https://google.com```
+- ```$ browse:https://wikipedia.org```
 
 ### Closing
 
-- `Ctrl + C`
+- Click on red square in top right
+
+## TODOs
+
+- `Ctrl+C` to close
+- CORS fixes
 
 ## License
 
